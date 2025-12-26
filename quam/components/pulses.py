@@ -37,6 +37,7 @@ __all__ = [
 ]
 
 
+
 @quam_dataclass
 class Pulse(QuamComponent):
     """QUAM base component for a pulse.
@@ -1034,3 +1035,61 @@ class CosineBipolarPulse(Pulse):
             p = p * np.exp(1j * self.axis_angle)
 
         return p.tolist()
+
+@quam_dataclass
+class EdgePulse(Pulse):
+
+    shape: str        # rise | fall
+    envelope_type: str # gaussian | cosine
+    amplitude: float
+    axis_angle: float = None
+    length: int
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.shape not in {"rise", "fall"}:
+            raise ValueError("shape must be 'rise' or 'fall'")
+        if self.envelope_type not in {"gaussian", "cosine"}:
+            raise ValueError("envelope_type must be 'gaussian' or 'cosine'")
+
+    def waveform_function(self):
+        if self.envelope_type == "gaussian":
+            wf = self._gaussian_waveform()
+        elif self.envelope_type == "cosine":
+            wf = self._cosine_waveform()
+        else:
+            raise ValueError("Unsupported envelope_type")
+
+        return wf
+
+    def _gaussian_waveform(self):
+        from qualang_tools.config.waveform_tools import flattop_gaussian_waveform
+        
+        waveform = flattop_gaussian_waveform(
+            amplitude=self.amplitude,
+            flat_length=200,                                # A random value, it didn't matter here
+            rise_fall_length=self.length,       
+            return_part= self.shape ,
+        )
+        waveform = np.array(waveform)
+
+        if self.axis_angle is not None:
+            waveform = waveform * np.exp(1j * self.axis_angle)
+
+        return waveform
+
+    def _cosine_waveform(self):
+        from qualang_tools.config.waveform_tools import flattop_cosine_waveform
+        
+        waveform = flattop_cosine_waveform(
+            amplitude=self.amplitude,
+            flat_length=200,                                # A random value, it didn't matter here
+            rise_fall_length=self.length,       
+            return_part= self.shape ,
+        )
+        waveform = np.array(waveform)
+
+        if self.axis_angle is not None:
+            waveform = waveform * np.exp(1j * self.axis_angle)
+
+        return waveform
